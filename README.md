@@ -15,8 +15,8 @@ HW2 - Context: Consider an autonomous rover on the surface of Mars. The goal of 
 There are certain hazards in the environment:
 Rocks (which destroy the rover on contact (they’re very sharp))
 Storms (which destroy the rover on contact (they’re very powerful), but also degrade the air quality in adjacent (not diagonally adjacent) cells)
-
 Grad students only: Sandy areas (which increase movement cost from 1 to 2)
+
 The agent can take only certain actions:
 Move forward
 Rotate clockwise/counterclockwise by 90deg (CW/CCW)
