@@ -1,0 +1,472 @@
+#
+#def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, facts):
+#    # Initialize the evidence dictionary
+#    evidence_dict = {}
+#
+#    # Populate the evidence dictionary with ppm and sandy values
+#    for (i, j) in ppm_evidence:
+#        evidence_dict[(i, j)] = {'PPM': ppm_evidence[(i, j)]}
+#
+#    for (i, j) in sandyground_evidence:
+#        if (i, j) in evidence_dict:
+#            evidence_dict[(i, j)]['Sandy'] = sandyground_evidence[(i, j)]
+#        else:
+#            evidence_dict[(i, j)] = {'Sandy': sandyground_evidence[(i, j)]}
+#
+#    # Initialize the probability grid
+#    prob_grid = np.zeros((6, 6))
+#
+#    # Iterate through each cell in the grid
+#    for i in range(6):
+#        for j in range(6):
+#            cell_safe = False
+#
+#            for fact in facts:
+#                fact_dict = dict(fact)
+#                if hasattr(fact, 'template') and fact.template.name == 'cell':
+#                    if fact_dict['xloc'] == j and fact_dict['yloc'] == i:
+#                        if fact_dict["safe"] == "false":
+#                            cell_safe = True
+#                            #print('Cell is marked safe:', j, i) ## DEBUG
+#                            break
+#
+#            if cell_safe:
+#                # If the cell is marked as safe, set storm probability to 0 
+#                prob_grid[i][j] = .1
+#            elif (i, j) in evidence_dict:
+#                # Compute storm probability given evidence
+#                print('im actually working!!!!!!!!!!!!!!!!!!!!!!!!')
+#                evidence = evidence_dict[(i, j)]
+#                storm_prob = enumeration_ask('StormProximity', evidence, bayes_nets[(i, j)])
+#                print(f"Coordinates: ({i}, {j}), Storm Probability: {storm_prob[True]}")
+#                print(f"Cell ({i}, {j}) Evidence: {evidence}")
+#                print(f"Storm Probability: {storm_prob}")
+#
+#                prob_grid[i][j] = storm_prob[True]  
+#
+#    print(prob_grid)
+#
+#    # Return both the probability grid and the list of safe cells
+#    return prob_grid
+
+
+#def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, safe_cells):
+#    # Create a list of safe cell coordinates in (y, x) format
+#    safe_cell_list = [(y, x) for x, y in safe_cells]
+#
+#    # Initialize the evidence dictionary
+#    evidence_dict = {}
+#
+#    # Populate the evidence dictionary with ppm and sandy values
+#    for (i, j) in ppm_evidence:
+#        evidence_dict[(i, j)] = {'PPM': ppm_evidence[(i, j)]}
+#
+#    for (i, j) in sandyground_evidence:
+#        evidence_dict[(i, j)]['Sandy'] = sandyground_evidence[(i, j)]
+#
+#    #print('VALUES VALUES', ppm_evidence, sandyground_evidence)
+#
+#    # Initialize the probability grid
+#    prob_grid = np.zeros((6, 6))
+#
+#    # Iterate through each cell in bayes_nets and compute storm probability
+#    for i in range(6):
+#        for j in range(6):
+#            if (i, j) in safe_cell_list:
+#                # If the cell is marked as safe, set storm probability to 0
+#                prob_grid[i][j] = 0
+#            elif (i, j) in evidence_dict:
+#                # Use enumeration_ask to compute storm probability given evidence
+#                print("im here !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#                evidence = evidence_dict[(i, j)]
+#                storm_prob = enumeration_ask('StormProximity', evidence, bayes_nets[(i, j)])
+#                prob_grid[i][j] = storm_prob[True]  # Assuming 'True' corresponds to 'Adjacent' in the CPT
+#
+#    return prob_grid
+
+def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, nrows, ncols):
+    # Initialize the evidence dictionary
+    evidence_dict = {}
+
+    # Populate the evidence dictionary with ppm and sandy values
+    for (i, j), ppm_value in ppm_evidence.items():
+        evidence_dict.setdefault((i, j), {}).update({'PPM': ppm_value})
+
+    for (i, j), sandy_value in sandyground_evidence.items():
+        evidence_dict.setdefault((i, j), {}).update({'Sandy': sandy_value})
+
+    # Initialize the probability grid
+    prob_grid = np.zeros((nrows, ncols))
+
+    # Iterate through each cell in the grid
+    for i in range(nrows):
+        for j in range(ncols):
+            # Gather combined evidence from surrounding cells
+            combined_evidence = {}
+            for di in range(-1, 2):  # From -1 to 1
+                for dj in range(-1, 2):  # From -1 to 1
+                    adjacent_cell = (i + di, j + dj)
+                    if adjacent_cell in evidence_dict:
+                        # Add adjacent cell's evidence to the combined evidence
+                        for key, value in evidence_dict[adjacent_cell].items():
+                            combined_evidence_key = f'{key}{adjacent_cell[0]}{adjacent_cell[1]}'
+                            combined_evidence[combined_evidence_key] = value
+
+            # Compute storm probability using the Bayesian network
+            if combined_evidence:
+                storm_prob = enumeration_ask('StormProximity', combined_evidence, bayes_nets[(i, j)])
+                prob_grid[i][j] = storm_prob[True]
+            else:
+                # Default probability if no evidence
+                prob_grid[i][j] = 0.1
+
+    return prob_grid, nrows, ncols
+
+
+
+
+
+
+    def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, facts):
+    prob_grid = np.zeros((6, 6))
+
+    # Process facts to create a map of cell properties
+    cell_properties = {(fact['xloc'], fact['yloc']): dict(fact) for fact in facts if hasattr(fact, 'template') and fact.template.name == 'cell'}
+
+    for i in range(6):
+        for j in range(6):
+            if cell_properties.get((i, j), {}).get('safe') != 'true':
+                combined_evidence = {}
+                # Add evidence for the current cell
+                current_ppm_evidence = ppm_evidence.get((i, j), {})
+                current_sandy_evidence = sandyground_evidence.get((i, j), {})
+                
+                if isinstance(current_ppm_evidence, dict):
+                    combined_evidence.update(current_ppm_evidence)
+                if isinstance(current_sandy_evidence, dict):
+                    combined_evidence.update(current_sandy_evidence)
+                
+                # Iterate over neighboring cells
+                for di in [-1, 0, 1]:
+                    for dj in [-1, 0, 1]:
+                        if di == 0 and dj == 0:
+                            continue
+                        adj_i, adj_j = i + di, j + dj
+                        if 0 <= adj_i < 6 and 0 <= adj_j < 6:
+                            if cell_properties.get((adj_i, adj_j), {}).get('safe') != 'true':
+                                adj_ppm_evidence = ppm_evidence.get((adj_i, adj_j), {})
+                                adj_sandy_evidence = sandyground_evidence.get((adj_i, adj_j), {})
+                                
+                                if isinstance(adj_ppm_evidence, dict):
+                                    combined_evidence.update(adj_ppm_evidence)
+                                if isinstance(adj_sandy_evidence, dict):
+                                    combined_evidence.update(adj_sandy_evidence)
+
+                                # Calculate storm probability
+                                storm_prob = enumeration_ask('StormProximity', combined_evidence, bayes_nets[(i, j)])
+                                if (di in [-1, 1] and dj in [-1, 1]):
+                                    # Diagonal cells
+                                    prob_grid[adj_i][adj_j] = storm_prob['Diagonal']
+                                else:
+                                    # Adjacent cells
+                                    prob_grid[adj_i][adj_j] = storm_prob['Adjacent']
+    print(prob_grid)
+    return prob_grid
+
+
+
+
+
+    
+def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, facts):
+
+    # This function takes in the evidence and asks the Bayes net for storm predictions. You should override the safe cells with storm probability = 0
+    # Return a 6x6 grid with the storm probabilities.
+    # Remember that the grid is in y,x (y is our row index, x is our column index)
+    safe_cell_list = []
+    for i in range(6):
+        for j in range(6):
+            for fact in facts:
+                fact_dict = dict(fact)
+                if hasattr(fact, 'template') and fact.template.name == 'cell':
+                    if fact_dict['xloc'] == j and fact_dict['yloc'] == i:
+                        if fact_dict["safe"] == 'true':
+                            safe_cell_list.append((j, i))
+                            #print('Cell is marked safe:', j, i) ## DEBUG
+
+
+    evidence_dict = {}
+    
+    for (key, value) in ppm_evidence:
+        evidence_dict[(key, value)] = {'PPM': ppm_evidence[(key, value)]}
+
+    for (key, value) in sandyground_evidence:
+        if (key, value) in evidence_dict:
+            evidence_dict[(key, value)]['Sandy'] = sandyground_evidence[(key, value)]
+        else:
+            evidence_dict[(key, value)] = {'Sandy': sandyground_evidence[(key, value)]}
+
+    prob_grid = np.zeros(shape=(len(grid[:,0]),len(grid[0,:])))
+
+    for i in range(6):
+        for j in range(6):
+            for fact in facts:
+                fact_dict = dict(fact)
+                if hasattr(fact, 'template') and fact.template.name == 'cell':
+                    if fact_dict['xloc'] == j and fact_dict['yloc'] == i:
+                        if fact_dict["safe"] == 'true':
+                            prob_grid[j][i] = 0
+                        else:
+                            combined_evidence = evidence_dict.get((i, j), {})
+                            for di in [-1, 0, 1]:
+                                for dj in [-1, 0, 1]:
+                                    if di == 0 and dj == 0:
+                                        continue  # Skip the current cell
+                                    else:
+                                        if(j+dj, i+di) in safe_cell_list:
+                                            prob_grid[j + dj][i + di] = 0
+                                        else:
+                                            adjacent_evidence = evidence_dict.get((i + di, j + dj), {})
+                                            combined_evidence.update(adjacent_evidence)
+                                            #print(combined_evidence) if combined_evidence != {} else None
+                                            storm_prob = enumeration_ask('StormProximity', combined_evidence, bayes_nets[(i, j)])
+                                            if (di == -1 and dj == -1) or (di == 1 and dj == 1) or (
+                                                    di == -1 and dj == 1) or (di == 1 and dj == -1):
+                                                loc = "Adjacent"
+                                            else:
+                                                loc = "Diagonal"
+                                            if loc is not None:
+                                                prob_grid[i + di - 1][j + dj - 1] = storm_prob.__getitem__(loc)
+                                            #print(storm_prob.show_approx())
+
+    #print(safe_cell_list)
+    #print(prob_grid)
+    return prob_grid
+
+
+
+
+    def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, facts, grid):
+
+    # This function takes in the evidence and asks the Bayes net for storm predictions. You should override the safe cells with storm probability = 0
+    # Return a 6x6 grid with the storm probabilities.
+    # Remember that the grid is in y,x (y is our row index, x is our column index)
+    safe_cell_list = []
+    for i in range(6):
+        for j in range(6):
+            for fact in facts:
+                fact_dict = dict(fact)
+                if hasattr(fact, 'template') and fact.template.name == 'cell':
+                    if fact_dict['xloc'] == j and fact_dict['yloc'] == i:
+                        if fact_dict["safe"] == 'true':
+                            safe_cell_list.append((j, i))
+                            #print('Cell is marked safe:', j, i) ## DEBUG
+
+
+    evidence_dict = {}
+    
+    for (key, value) in ppm_evidence:
+        evidence_dict[(key, value)] = {'PPM': ppm_evidence[(key, value)]}
+
+    for (key, value) in sandyground_evidence:
+        if (key, value) in evidence_dict:
+            evidence_dict[(key, value)]['Sandy'] = sandyground_evidence[(key, value)]
+        else:
+            evidence_dict[(key, value)] = {'Sandy': sandyground_evidence[(key, value)]}
+
+    prob_grid = np.zeros(shape=(len(grid[:,0]),len(grid[0,:])))
+
+    for i in range(6):
+        for j in range(6):
+            for fact in facts:
+                fact_dict = dict(fact)
+                if hasattr(fact, 'template') and fact.template.name == 'cell':
+                    if fact_dict['xloc'] == j and fact_dict['yloc'] == i:
+                        if fact_dict["safe"] == 'true':
+                            prob_grid[j][i] = 0
+                        else:
+                            combined_evidence = evidence_dict.get((i, j), {})
+                            for di in [-1, 0, 1]:
+                                for dj in [-1, 0, 1]:
+                                    if di == 0 and dj == 0:
+                                        continue  # Skip the current cell
+                                    else:
+                                        if(j+dj, i+di) in safe_cell_list:
+                                            prob_grid[j + dj][i + di] = 0
+                                        else:
+                                            adjacent_evidence = evidence_dict.get((i + di, j + dj), {})
+                                            combined_evidence.update(adjacent_evidence)
+                                            storm_relation = check_storm_nearby(grid, j, i)
+                                            print(adjacent_evidence, combined_evidence, 'combo!!!!!!!!!!!!!!!!!!!!!!!!!!!!')  if adjacent_evidence != {} else None
+
+                                            storm_prob = enumeration_ask('StormProximity', combined_evidence, bayes_nets[(i, j)])
+                                            if storm_relation == 'adjacent':
+                                                prob_grid[i][j] = storm_prob['Adjacent']
+                                            elif storm_relation == 'diagonal':
+                                                prob_grid[i][j] = storm_prob['Diagonal']
+                                            else:  # 'false' or not nearby
+                                                prob_grid[i][j] = storm_prob['NotNearby']
+    print(prob_grid)
+    return prob_grid
+
+
+#def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, facts, grid):
+    prob_grid = np.zeros((6, 6))
+
+    # Process facts to create a map of cell properties
+    cell_properties = {(fact['xloc'], fact['yloc']): dict(fact) for fact in facts if hasattr(fact, 'template') and fact.template.name == 'cell'}
+
+    for i in range(6):
+        for j in range(6):
+            if cell_properties.get((i, j), {}).get('safe') != 'true':
+                combined_evidence = {}
+                # Add evidence for the current cell
+                current_ppm_evidence = ppm_evidence.get((i, j), {})
+                current_sandy_evidence = sandyground_evidence.get((i, j), {})
+                
+                if isinstance(current_ppm_evidence, dict):
+                    combined_evidence.update(current_ppm_evidence)
+                if isinstance(current_sandy_evidence, dict):
+                    combined_evidence.update(current_sandy_evidence)
+                
+                # Iterate over neighboring cells
+                for di in [-1, 0, 1]:
+                    for dj in [-1, 0, 1]:
+                        if di == 0 and dj == 0:
+                            continue
+                        adj_i, adj_j = i + di, j + dj
+                        if 0 <= adj_i < 6 and 0 <= adj_j < 6:
+                            if cell_properties.get((adj_i, adj_j), {}).get('safe') != 'true':
+                                adj_ppm_evidence = ppm_evidence.get((adj_i, adj_j), {})
+                                adj_sandy_evidence = sandyground_evidence.get((adj_i, adj_j), {})
+                                
+                                if isinstance(adj_ppm_evidence, dict):
+                                    combined_evidence.update(adj_ppm_evidence)
+                                if isinstance(adj_sandy_evidence, dict):
+                                    combined_evidence.update(adj_sandy_evidence)
+
+                                # Calculate storm probability
+                                storm_prob = enumeration_ask('StormProximity', combined_evidence, bayes_nets[(i, j)])
+                                if (di in [-1, 1] and dj in [-1, 1]):
+                                    # Diagonal cells
+                                    prob_grid[adj_i][adj_j] = storm_prob['Diagonal']
+                                else:
+                                    # Adjacent cells
+                                    prob_grid[adj_i][adj_j] = storm_prob['Adjacent']
+    print(prob_grid)
+    return prob_grid
+
+#def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, facts, grid):
+    prob_grid = np.zeros((6, 6))
+
+    # Process facts to create a map of cell properties
+    cell_properties = {(fact['xloc'], fact['yloc']): dict(fact) for fact in facts if hasattr(fact, 'template') and fact.template.name == 'cell'}
+
+    for i in range(6):
+        for j in range(6):
+            if cell_properties.get((i, j), {}).get('safe') != 'true':
+                combined_evidence = {}
+                # Add evidence for the current cell
+                current_ppm_evidence = ppm_evidence.get((i, j), {})
+                current_sandy_evidence = sandyground_evidence.get((i, j), {})
+                
+                if isinstance(current_ppm_evidence, dict):
+                    combined_evidence.update(current_ppm_evidence)
+                if isinstance(current_sandy_evidence, dict):
+                    combined_evidence.update(current_sandy_evidence)
+                
+                # Iterate over neighboring cells
+                for di in [-1, 0, 1]:
+                    for dj in [-1, 0, 1]:
+                        if di == 0 and dj == 0:
+                            continue
+                        adj_i, adj_j = i + di, j + dj
+                        if 0 <= adj_i < 6 and 0 <= adj_j < 6:
+                            if cell_properties.get((adj_i, adj_j), {}).get('safe') != 'true':
+                                adj_ppm_evidence = ppm_evidence.get((adj_i, adj_j), {})
+                                adj_sandy_evidence = sandyground_evidence.get((adj_i, adj_j), {})
+                                
+                                if isinstance(adj_ppm_evidence, dict):
+                                    combined_evidence.update(adj_ppm_evidence)
+                                if isinstance(adj_sandy_evidence, dict):
+                                    combined_evidence.update(adj_sandy_evidence)
+
+                # Check if the cell is adjacent or diagonal to a storm
+                storm_relation = check_storm_nearby(grid, j, i)
+
+                # Calculate storm probability for the current cell
+                storm_prob = enumeration_ask('StormProximity', combined_evidence, bayes_nets[(i, j)])
+                if storm_relation in ['adjacent', 'diagonal']:
+                    prob_grid[i][j] = storm_prob[storm_relation.capitalize()]
+                else:
+                    prob_grid[i][j] = storm_prob['NotNearby']
+    
+    print(prob_grid)
+    return prob_grid
+
+
+
+#def compute_storm_probs(bayes_nets, ppm_evidence, sandyground_evidence, facts, grid):
+
+    # This function takes in the evidence and asks the Bayes net for storm predictions. You should override the safe cells with storm probability = 0
+    # Return a 6x6 grid with the storm probabilities.
+    # Remember that the grid is in y,x (y is our row index, x is our column index)
+    safe_cell_list = []
+    for i in range(6):
+        for j in range(6):
+            for fact in facts:
+                fact_dict = dict(fact)
+                if hasattr(fact, 'template') and fact.template.name == 'cell':
+                    if fact_dict['xloc'] == j and fact_dict['yloc'] == i:
+                        if fact_dict["safe"] == 'true':
+                            safe_cell_list.append((j, i))
+                            #print('Cell is marked safe:', j, i) ## DEBUG
+
+
+    evidence_dict = {}
+    
+    for (key, value) in ppm_evidence:
+        evidence_dict[(key, value)] = {'PPM': ppm_evidence[(key, value)]}
+
+    for (key, value) in sandyground_evidence:
+        if (key, value) in evidence_dict:
+            evidence_dict[(key, value)]['Sandy'] = sandyground_evidence[(key, value)]
+        else:
+            evidence_dict[(key, value)] = {'Sandy': sandyground_evidence[(key, value)]}
+
+    prob_grid = np.zeros(shape=(len(grid[:,0]),len(grid[0,:])))
+
+    for i in range(6):
+        for j in range(6):
+            for fact in facts:
+                fact_dict = dict(fact)
+                if hasattr(fact, 'template') and fact.template.name == 'cell':
+                    if fact_dict['xloc'] == j and fact_dict['yloc'] == i:
+                        if fact_dict["safe"] == 'true':
+                            prob_grid[j][i] = 0
+                        else:
+                            combined_evidence = evidence_dict.get((i, j), {})
+                            for di in [-1, 0, 1]:
+                                for dj in [-1, 0, 1]:
+                                    if di == 0 and dj == 0:
+                                        continue  # Skip the current cell
+                                    else:
+                                        if(j+dj, i+di) in safe_cell_list:
+                                            prob_grid[j + dj][i + di] = 0
+                                        else:
+                                            adjacent_evidence = evidence_dict.get((i + di, j + dj), {})
+                                            combined_evidence.update(adjacent_evidence)
+                                            print(combined_evidence) if combined_evidence != {} else None
+                                            storm_prob = enumeration_ask('StormProximity', combined_evidence, bayes_nets[(i, j)])
+                                            if (di == -1 and dj == -1) or (di == 1 and dj == 1) or (
+                                                    di == -1 and dj == 1) or (di == 1 and dj == -1):
+                                                loc = "Adjacent"
+                                            else:
+                                                loc = "Diagonal"
+                                            if loc is not None:
+                                                prob_grid[i + di - 1][j + dj - 1] = storm_prob.__getitem__(loc)
+                                            #print(storm_prob.show_approx())
+
+    #print(safe_cell_list)
+    #print(prob_grid)
+    return prob_grid
