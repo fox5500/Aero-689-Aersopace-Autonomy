@@ -25,3 +25,9 @@ Spectrometer (to determine if a biological sample is present in the current cell
 Air quality (to determine if the air quality is degraded in a cell)
 Traction (to determine if a cell is sandy)
 Lidar (to determine if rocks are ahead and if so, how far)
+
+
+Project
+In this project, we will continue with the autonomous rover example from programming assignment 2. You may reuse your code from Programming Assignment 2. The goal is to give our agent probabilistic reasoning capabilities so it can avoid storms, which was the primary reason for losing the last generation of Marscorp’s rovers. In addition, we will give the agent the ability to do some autonomous fault diagnostics. We provide the whole problem context below.
+
+There is a more detailed description of the project in project/AERO 489_689 Project Rev1
